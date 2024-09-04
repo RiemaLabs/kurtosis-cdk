@@ -33,3 +33,8 @@ MaxPendingTx = 1
 				MultiGasProvider = false
 				L1ChainID =  {{.l1_chain_id}}
 				HTTPHeaders = []
+
+[DataAvailability]
+NubitNodeRpcURL = ""
+AuthKey = ""
+AppName = ""
