@@ -18,7 +18,7 @@ def create_cdk_node_service_config(
         image=args["cdk_node_image"],
         ports={
             "aggregator": PortSpec(
-                args["zkevm_aggregator_port"], application_protocol="grpc"
+                args["zkevm_aggregator_port"], application_protocol="grpc", wait = "60m"
             ),
         },
         files={
