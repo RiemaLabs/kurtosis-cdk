@@ -145,6 +145,12 @@ def create_rpc_service_config(args, config_artifact, genesis_artifact):
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={
+            "http-rpc": PortSpec(
+                8545, application_protocol="http"
+            ),
+            "ws-rpc": PortSpec(8546, application_protocol="ws"),
+        },
         config_files=Directory(artifact_names=[config_artifact, genesis_artifact]),
         components=NODE_COMPONENTS.rpc,
         http_api="eth,net,debug,zkevm,txpool,web3",

@@ -16,6 +16,7 @@ POSTGRES_PORT = 5432
 POSTGRES_MASTER_DB = "master"
 POSTGRES_MASTER_USER = "master_user"
 POSTGRES_MASTER_PASSWORD = "master_password"
+DATA_DIRECTORY_PATH = "/data"
 
 # When 'USE_REMOTE_POSTGRES' is True, update following credentials to match your remote postgres DBs
 # It is recommended users keep existing DB names and usernames for stability
@@ -171,8 +172,12 @@ def create_postgres_service(plan, db_configs, suffix):
             "POSTGRES_DB": POSTGRES_MASTER_DB,
             "POSTGRES_USER": POSTGRES_MASTER_USER,
             "POSTGRES_PASSWORD": POSTGRES_MASTER_PASSWORD,
+            "PGDATA": DATA_DIRECTORY_PATH + "/pgdata",
         },
-        files={"/docker-entrypoint-initdb.d/": init_script},
+        files={
+            "/docker-entrypoint-initdb.d/": init_script,
+            DATA_DIRECTORY_PATH: Directory(persistent_key="data-postgres"),
+        },
         cmd=["-N 1000"],
     )
 
