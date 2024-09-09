@@ -35,6 +35,6 @@ MaxPendingTx = 1
 				HTTPHeaders = []
 
 [DataAvailability]
-NubitNodeRpcURL = ""
-AuthKey = ""
-AppName = ""
+NodeRpc = ""
+AuthToken = ""
+Namespace = ""

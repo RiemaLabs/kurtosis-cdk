@@ -12,7 +12,7 @@ NODE_COMPONENTS = struct(
 
 
 def _create_node_component_service_config(
-    image, ports, config_files, components, http_api={}
+    image, ports, public_ports, config_files, components, http_api={}
 ):
     cmd = [
         "run",
@@ -26,6 +26,7 @@ def _create_node_component_service_config(
     return ServiceConfig(
         image=image,
         ports=ports,
+        public_ports=public_ports,
         files={
             "/etc/zkevm": config_files,
         },
@@ -46,6 +47,7 @@ def start_synchronizer(plan, args, config_artifact, genesis_artifact):
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={},
         config_files=Directory(artifact_names=[config_artifact, genesis_artifact]),
         components=NODE_COMPONENTS.synchronizer,
     )
@@ -66,6 +68,7 @@ def create_sequencer_service_config(args, config_artifact, genesis_artifact):
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={},
         config_files=Directory(artifact_names=[config_artifact, genesis_artifact]),
         components=NODE_COMPONENTS.sequencer + "," + NODE_COMPONENTS.rpc,
         http_api="eth,net,debug,zkevm,txpool,web3",
@@ -85,6 +88,7 @@ def create_sequence_sender_service_config(
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={},
         config_files=Directory(
             artifact_names=[
                 config_artifact,
@@ -117,6 +121,7 @@ def create_aggregator_service_config(
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={},
         config_files=Directory(
             artifact_names=[
                 config_artifact,
@@ -146,15 +151,14 @@ def create_rpc_service_config(args, config_artifact, genesis_artifact):
             ),
         },
         public_ports={
-            "http-rpc": PortSpec(
-                8545, application_protocol="http"
-            ),
-            "ws-rpc": PortSpec(8546, application_protocol="ws"),
+            "http-rpc": PortSpec(args["zkevm_rpc_http_port"], application_protocol="http"),
+            "ws-rpc": PortSpec(args["zkevm_rpc_ws_port"], application_protocol="ws"),
         },
         config_files=Directory(artifact_names=[config_artifact, genesis_artifact]),
         components=NODE_COMPONENTS.rpc,
         http_api="eth,net,debug,zkevm,txpool,web3",
     )
+
     return {rpc_name: rpc_service_config}
 
 
@@ -174,6 +178,7 @@ def create_eth_tx_manager_service_config(
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={},
         config_files=Directory(
             artifact_names=[
                 config_artifact,
@@ -197,6 +202,7 @@ def create_l2_gas_pricer_service_config(args, config_artifact, genesis_artifact)
                 args["zkevm_prometheus_port"], application_protocol="http"
             ),
         },
+        public_ports={},
         config_files=Directory(artifact_names=[config_artifact, genesis_artifact]),
         components=NODE_COMPONENTS.l2_gas_pricer,
     )

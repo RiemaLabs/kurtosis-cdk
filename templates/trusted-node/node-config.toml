@@ -132,9 +132,9 @@ ApiKey = ""
 Url = ""
 
 [DataAvailability]
-NubitNodeRpcURL = ""
-AuthKey = ""
-AppName = ""
+NodeRPC = "http://localhost:26658"
+AuthToken = "token"
+Namespace = "polygon"
 
 
 # ==============================================================================
