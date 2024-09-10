@@ -2,20 +2,20 @@
 # When 'USE_REMOTE_POSTGRES' is False, service automatically creates all CDK databases locally
 # When 'USE_REMOTE_POSTGRES' is True, service is created just as a helper for param injection across pods
 # When 'USE_REMOTE_POSTGRES' is True, all state is stored on your preconfigured remote Postgres instances
-USE_REMOTE_POSTGRES = False
+USE_REMOTE_POSTGRES = True
 
 # When 'USE_REMOTE_POSTGRES' is True, replace 'POSTGRES_HOSTNAME' with your master database IP/hostname
 POSTGRES_HOSTNAME = "127.0.0.1"
+POSTGRES_PORT = 5432
 
 # Mostly static params unless user has specialized postgres configuration
 POSTGRES_IMAGE = "postgres:16.2"
 POSTGRES_SERVICE_NAME = "postgres"
-POSTGRES_PORT = 5432
 
 # Below 'POSTGRES_MASTER_' params only apply when 'USE_REMOTE_POSTGRES' is False
-POSTGRES_MASTER_DB = "master"
-POSTGRES_MASTER_USER = "master_user"
-POSTGRES_MASTER_PASSWORD = "master_password"
+POSTGRES_MASTER_DB = "postgres"
+POSTGRES_MASTER_USER = "postgres"
+POSTGRES_MASTER_PASSWORD = "mypassword"
 DATA_DIRECTORY_PATH = "/data"
 
 # When 'USE_REMOTE_POSTGRES' is True, update following credentials to match your remote postgres DBs
@@ -30,22 +30,22 @@ CENTRAL_ENV_DBS = {
     "aggregator_db": {
         "name": "aggregator_db",
         "user": "aggregator_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     },
     "aggregator_syncer_db": {
         "name": "aggregator_syncer_db",
         "user": "aggregator_syncer_db_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     },
     "bridge_db": {
         "name": "bridge_db",
         "user": "bridge_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     },
     "dac_db": {
         "name": "dac_db",
         "user": "dac_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     },
 }
 
@@ -55,7 +55,7 @@ PROVER_DB = {
     "prover_db": {
         "name": "prover_db",
         "user": "prover_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
         "init": read_file(src="./templates/databases/prover-db-init.sql"),
     }
 }
@@ -65,18 +65,18 @@ ZKEVM_NODE_DBS = {
     "event_db": {
         "name": "event_db",
         "user": "event_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
         "init": read_file(src="./templates/databases/event-db-init.sql"),
     },
     "pool_db": {
         "name": "pool_db",
         "user": "pool_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     },
     "state_db": {
         "name": "state_db",
         "user": "state_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     },
 }
 
@@ -85,7 +85,7 @@ CDK_ERIGON_DBS = {
     "pool_manager_db": {
         "name": "pool_manager_db",
         "user": "pool_manager_user",
-        "password": "redacted",
+        "password": POSTGRES_MASTER_PASSWORD,
     }
 }
 
@@ -163,26 +163,52 @@ def create_postgres_service(plan, db_configs, suffix):
         },
     )
 
-    postgres_service_cfg = ServiceConfig(
-        image=POSTGRES_IMAGE,
-        ports={
-            "postgres": PortSpec(POSTGRES_PORT, application_protocol="postgresql"),
-        },
-        env_vars={
-            "POSTGRES_DB": POSTGRES_MASTER_DB,
-            "POSTGRES_USER": POSTGRES_MASTER_USER,
-            "POSTGRES_PASSWORD": POSTGRES_MASTER_PASSWORD,
-            "PGDATA": DATA_DIRECTORY_PATH + "/pgdata",
-        },
-        files={
-            "/docker-entrypoint-initdb.d/": init_script,
-            DATA_DIRECTORY_PATH: Directory(persistent_key="data-postgres"),
-        },
-        cmd=["-N 1000"],
-    )
+    postgres_service_cfg = None
+    if USE_REMOTE_POSTGRES:
+        plan.print("Construct remote databaser service")
+        postgres_service_cfg = ServiceConfig(
+            image=POSTGRES_IMAGE,
+            files={
+                "/docker-entrypoint-initdb.d/": init_script,
+            },
+            env_vars={
+                "PGPASSWORD": POSTGRES_MASTER_PASSWORD,
+            },
+            cmd=["psql","-h",
+                    POSTGRES_HOSTNAME,
+                    "-p",
+                    "{0}".format(POSTGRES_PORT),
+                    "-U",
+                    POSTGRES_MASTER_USER,
+                    "-d",
+                    POSTGRES_MASTER_DB,
+                    "-f",
+                    "/docker-entrypoint-initdb.d/init.sql",
+            ],
+        )
+    else:
+        plan.print("Construct local database service")
+        postgres_service_cfg = ServiceConfig(
+            image=POSTGRES_IMAGE,
+            ports={
+                "postgres": PortSpec(POSTGRES_PORT, application_protocol="postgresql"),
+            },
+            env_vars={
+                "POSTGRES_DB": POSTGRES_MASTER_DB,
+                "POSTGRES_USER": POSTGRES_MASTER_USER,
+                "POSTGRES_PASSWORD": POSTGRES_MASTER_PASSWORD,
+                "PGDATA": DATA_DIRECTORY_PATH + "/pgdata",
+            },
+            files={
+                "/docker-entrypoint-initdb.d/": init_script,
+                DATA_DIRECTORY_PATH: Directory(persistent_key="data-postgres"),
+            },
+            cmd=["-N 1000"],
+        )
 
     plan.add_service(
         name=_service_name(suffix),
         config=postgres_service_cfg,
         description="Starting Postgres Service",
     )
+
